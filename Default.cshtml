@@ -1,0 +1,108 @@
+﻿@section Scripts {
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDY0kkJiTPVd2U7aTOAwhc9ySH6oHxOIYM&sensor=false"></script>
+    <script type="text/javascript">
+        var markerFile = 'Data/CityList.cshtml';
+        var defaultLatlng = new google.maps.LatLng(35.4675, -97.5161);
+        var defaultZoom = 4;
+        var map;
+        var infowindow;
+        var markerList = {};
+        $.ajaxSetup({ "error": function (XMLHttpRequest, textStatus, errorThrown)
+        {
+            alert(textStatus);
+            alert(errorThrown);
+            alert(XMLHttpRequest.responseText);
+        }
+        });
+        var myOptions = {
+            zoom: defaultZoom,
+            center: defaultLatlng,
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+        function loadMap()
+        {
+            map = new google.maps.Map(document.getElementById("googleMap"), myOptions);
+            infowindow = new google.maps.InfoWindow();
+            loadMarkers();
+        }
+
+        function loadMarkers()
+        {
+            $.getJSON(markerFile, function (data)
+            {
+                $.each(data, function (i, field)
+                {
+                    loadMarker(field);
+                });
+            });
+        }
+        function loadMarker(markerData)
+        {
+            var myLatlng = new google.maps.LatLng(markerData['Latitude'], markerData['Longitude']);
+            var marker = new google.maps.Marker({
+                id: markerData['CityStateID'],
+                map: map,
+                title: markerData['City'],
+                position: myLatlng
+            });
+            markerList[marker.id] = marker;
+
+            google.maps.event.addListener(marker, 'click', function ()
+            {
+                var url = "~/City.cshtml?id=" + mark['CityStateID'].toString;
+                alert(url);
+                window.location.assign(url);
+                //showMarker(marker.id);
+            });            
+        }
+        function showMarker(markerId)
+        {
+            var marker = markerList[markerId];
+            if (marker)
+            {
+                $.get('data/' + marker.id + '.html', function (data)
+                {
+                    infowindow.setContent(data);
+                    infowindow.open(map, marker);
+                });
+            } else
+            {
+                alert('Error marker not found: ' + markerId);
+            }
+        }
+
+        google.maps.event.addDomListener(window, 'load', loadMap);
+    </script>
+}
+
+@{
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Sales Territories";
+
+    var salonDB = Database.Open("SalonDB");
+    var cities = salonDB.Query("SELECT CityStateID, City, Latitude, Longitude FROM CityState");
+}
+
+<hgroup class="title">
+    <h1>@Page.Title.</h1>
+    <h2>Map of Salons by City</h2>
+</hgroup>
+
+<article>
+    <div id="googleMap" style="width: 100%; height: 500px;"></div>
+</article>
+
+<aside>
+    <h3>Cities</h3>
+    <p>
+        City level views of Sales Territories
+    </p>
+    <ul>
+        @foreach (var city in cities) {
+            <li><a href="~/City.cshtml?id=@city.CityStateID">@city.City</a></li>
+        }
+    </ul>
+        <p>
+        <a href="InsertCity">Add New City</a>
+    </p>
+</aside>

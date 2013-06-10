@@ -1,0 +1,18 @@
+﻿@{
+    var db = Database.Open("SalonDB");
+    var salons = db.Query("SELECT s.SalonID, s.Name, s.Address, s.City, s.State, s.Zip, sr.Name as SalesRep, s.Latitude, s.Longitude FROM Salon s LEFT JOIN SalesRep sr ON s.SalesRepID = sr.SalesRepID ORDER BY s.Name");
+    var grid = new WebGrid(salons, ajaxUpdateContainerId: "grid");                    
+}
+@grid.GetHtml(tableStyle: "ui-widget ui-widget-content",
+                    headerStyle: "ui-widget-header",
+                    columns: grid.Columns(
+                    grid.Column("Name"),
+                    grid.Column("Address"),
+                    grid.Column("City"),
+                    grid.Column("State"),
+                    grid.Column("Zip"),
+                    grid.Column("SalesRep"),
+                    grid.Column("Latitude"),
+                    grid.Column("Longitude")
+                )
+    )

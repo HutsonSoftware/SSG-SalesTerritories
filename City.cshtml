@@ -1,0 +1,117 @@
+﻿@{
+    var db = Database.Open("SalonDB");
+    var cityStateID = Request["id"];
+    var cityStateSql = @"SELECT City, Latitude, Longitude FROM CityState WHERE CityStateID = @0";
+    var singleCityState = db.Query(cityStateSql, cityStateID);
+    var city = singleCityState.ElementAt(0).City;
+    var latitude = singleCityState.ElementAt(0).Latitude;
+    var longitude = singleCityState.ElementAt(0).Longitude;
+
+    var salonSql = @"SELECT s.SalonID, s.Name, s.Address, s.City, s.State, s.Zip, sr.Name as SalesRep, s.Latitude, s.Longitude FROM Salon s LEFT JOIN SalesRep sr ON s.SalesRepID = sr.SalesRepID WHERE s.CityStateID = @0 ORDER BY s.Name";
+    var salons = db.Query(salonSql, cityStateID);
+    
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = @city;
+}
+
+@section Scripts {
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDY0kkJiTPVd2U7aTOAwhc9ySH6oHxOIYM&sensor=false"></script>
+    <script type="text/javascript">
+        var markerFile = 'Data/SalonList.cshtml?id=@cityStateID';
+        var defaultLatlng = new google.maps.LatLng(@latitude, @longitude);
+        var defaultZoom = 11;
+        var map;
+        var infowindow;
+        var markerList = {};
+        $.ajaxSetup({ "error": function (XMLHttpRequest, textStatus, errorThrown)
+        {
+            alert(textStatus);
+            alert(errorThrown);
+            alert(XMLHttpRequest.responseText);
+        }});
+        var myOptions = {
+            zoom: defaultZoom,
+            center: defaultLatlng,
+            mapTypeId: google.maps.MapTypeId.ROADMAP
+        }
+        function loadMap()
+        {
+            map = new google.maps.Map(document.getElementById("googleMap"), myOptions);
+            infowindow = new google.maps.InfoWindow();
+            loadMarkers();
+        }
+        function loadMarkers()
+        {
+            $.getJSON(markerFile, function (data)
+            {
+                $.each(data, function (i, field)
+                {
+                    loadMarker(field);
+                });
+            });
+        }
+        function loadMarker(markerData)
+        {
+            var myLatlng = new google.maps.LatLng(markerData['Latitude'], markerData['Longitude']);
+            var marker = new google.maps.Marker({
+                id: markerData['SalonID'],
+                map: map,
+                title: markerData['Name'],
+                position: myLatlng
+            });
+            markerList[marker.id] = marker;
+            google.maps.event.addListener(marker, 'click', function ()
+            {
+                showMarker(marker.id);
+            });
+            google.maps.event.addListener(infowindow, 'closeclick', function ()
+            {
+                map.setCenter(defaultLatlng);
+                map.setZoom(defaultZoom);
+            });
+        }
+        function showMarker(markerId)
+        {
+            var marker = markerList[markerId];
+            if (marker)
+            {
+                $.get('data/Salon.cshtml?id=' + marker.id, function (data)
+                {
+                    infowindow.setContent(data);
+                    infowindow.open(map, marker);
+                });
+            } else
+            {
+                alert('Error marker not found: ' + markerId);
+            }
+        }
+        
+        google.maps.event.addDomListener(window, 'load', loadMap);
+    </script>
+}
+
+<hgroup class="title">
+    <h1>@Page.Title</h1>
+</hgroup>
+
+<article>
+    <div id="googleMap" style="width: 100%; height: 500px;"></div>
+    <br/><br/>
+    <div id="grid" class="ui-widget">@RenderPage("~/Partials/SalonGrid.cshtml")</div>
+</div>
+</article>
+
+<aside>
+    <h3>Salons</h3>
+    <p>
+        Salons in @city
+    </p>
+    <ul>
+        @foreach (var salon in salons) {
+            <li><a href="~/Salon.cshtml?id=@salon.SalonID">@salon.Name</a></li>
+        }
+    </ul>
+    <p>
+        <a href="InsertSalon.cshtml?id=@cityStateID">Add New Salon</a>
+    </p>
+</aside>

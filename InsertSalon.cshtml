@@ -1,0 +1,125 @@
+﻿@{ 
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Add New Salon";
+
+    var cityStateID = Request["id"];
+
+    var db = Database.Open("SalonDB");
+    var name = Request["Name"];
+    var address = Request["Address"];
+    var city = Request["City"];
+    var state = Request["State"];
+    var zip = Request["Zip"];
+    var latitude = Request["Latitude"];
+    var longitude = Request["Longitude"];
+    var salesRepID = Request["SalesRepID"];
+    var sixMonthSales = Request["SixMonthSales"];
+
+    if (IsPost) 
+    {
+        name = Request["Name"];
+        if (name.IsEmpty()) 
+        {
+            ModelState.AddError("Name", "Name is required.");
+        }
+        address = Request["Address"];
+        if (address.IsEmpty()) 
+        {
+            ModelState.AddError("Address","Address is required.");
+        }
+        city = Request["City"];
+        if (city.IsEmpty()) 
+        {
+            ModelState.AddError("City", "City is required.");
+        }
+        state = Request["State"];
+        if (state.IsEmpty()) 
+        {
+            ModelState.AddError("State","State is required.");
+        }
+        zip = Request["Zip"];
+        if (zip.IsEmpty()) 
+        {
+            ModelState.AddError("Zip","Zip is required.");
+        }
+        latitude = Request["Latitude"];
+        if (latitude.IsEmpty()) 
+        {
+            ModelState.AddError("Latitude","Latitude is required.");
+        }
+        longitude = Request["Longitude"];
+        if (longitude.IsEmpty()) 
+        {
+            ModelState.AddError("Longitude","Longitude is required.");
+        }
+        sixMonthSales = Request["SixMonthSales"];
+        if (sixMonthSales.IsEmpty()) 
+        {
+            ModelState.AddError("SixMonthSales","SixMonthSales is required.");
+        }
+        
+        if(ModelState.IsValid) 
+        {
+            var insertQuery = "INSERT INTO Salon (Name, Address, City, State, Zip, Latitude, Longitude, CityStateID, SalesRepID, SixMonthSales) VALUES (@0, @1, @2, @3, @4, @5, @6, @7, @8, @9)";
+            db.Execute(insertQuery, name, address, city, state, zip, latitude, longitude, cityStateID, salesRepID, sixMonthSales);
+            Response.Redirect("~/City.cshtml?id=@cityStateID");
+        }
+     }
+}
+
+@section Scripts {
+       <style type="text/css">
+            label {float:left; width: 8em; text-align: right;margin-right: 0.5em;}
+            fieldset {padding: 1em; border: 1px solid; width: 35em;}
+            legend {padding: 2px 4px; border: 1px solid; font-weight:bold;}
+            .validation-summary-errors {font-weight:bold; color:red; font-size: 11pt;}
+        </style>
+}
+
+<hgroup class="title">
+    <h1>@Page.Title</h1>
+</hgroup>
+
+@Html.ValidationSummary("Errors with your submission:")
+
+<form method="post" action="">
+    <fieldset>
+        <legend>Add Salon</legend>
+        <div>
+            <label>Salon Name:</label>
+            <input name="Name" type="text" size="50" value="@name" />
+        </div>
+        <div>
+            <label>Address:</label>
+            <input name="Address" type="text" size="50"value="@address" />
+        </div>
+        <div>
+            <label>City:</label>
+            <input name="City" type="text" size="50" value="@city" />
+        </div>
+        <div>
+            <label>State:</label>
+            <input name="State" type="text" size="50"value="@state" />
+        </div>
+        <div>
+            <label>Zip:</label>
+            <input name="Zip" type="text" size="50"value="@zip" />
+        </div>
+        <div>
+            <label>Latitude:</label>
+            <input name="Latitude" type="text" size="50" value="@latitude" />
+        </div>
+        <div>
+            <label>Longitude:</label>
+            <input name="Longitude" type="text" size="50" value="@longitude" />
+        </div>
+        <div>
+            <label>Six Month Sales:</label>
+            <input name="Longitude" type="text" size="50" value="@sixMonthSales" />
+        </div>
+        <div>
+            <label>&nbsp;</label>
+            <input type="submit" value="Insert" class="submit" />
+        </div>
+    </fieldset>
+</form>

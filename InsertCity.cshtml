@@ -1,0 +1,82 @@
+﻿@{ 
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Add New City";
+
+    var db = Database.Open("SalonDB");
+    var city = Request["City"];
+    var state = Request["State"];
+    var latitude = Request["Latitude"];
+    var longitude = Request["Longitude"];
+
+    if (IsPost) 
+    {
+        city = Request["City"];
+        if (city.IsEmpty()) 
+        {
+            ModelState.AddError("City", "City is required.");
+        }
+        state = Request["State"];
+        if (state.IsEmpty()) 
+        {
+            ModelState.AddError("State","State is required.");
+        }
+        latitude = Request["Latitude"];
+        if (latitude.IsEmpty()) 
+        {
+            ModelState.AddError("Latitude","Latitude is required.");
+        }
+        longitude = Request["Longitude"];
+        if (longitude.IsEmpty()) 
+        {
+            ModelState.AddError("Longitude","Longitude is required.");
+        }
+        
+        if(ModelState.IsValid) 
+        {
+            var insertQuery = "INSERT INTO CityState (City, State, Latitude, Longitude) VALUES (@0, @1, @2, @3)";
+            db.Execute(insertQuery, city, state, latitude, longitude);
+            Response.Redirect("~/Default");
+        }
+     }
+}
+
+@section Scripts {
+       <style type="text/css">
+            label {float:left; width: 8em; text-align: right;margin-right: 0.5em;}
+            fieldset {padding: 1em; border: 1px solid; width: 35em;}
+            legend {padding: 2px 4px; border: 1px solid; font-weight:bold;}
+            .validation-summary-errors {font-weight:bold; color:red; font-size: 11pt;}
+        </style>
+}
+
+<hgroup class="title">
+    <h1>@Page.Title</h1>
+</hgroup>
+
+@Html.ValidationSummary("Errors with your submission:")
+
+<form method="post" action="">
+    <fieldset>
+        <legend>Add City</legend>
+        <div>
+            <label>City:</label>
+            <input name="City" type="text" size="50" value="@city" />
+        </div>
+        <div>
+            <label>State:</label>
+            <input name="State" type="text" size="50"value="@state" />
+        </div>
+        <div>
+            <label>Latitude:</label>
+            <input name="Latitude" type="text" size="50" value="@latitude" />
+        </div>
+        <div>
+            <label>Longitude:</label>
+            <input name="Longitude" type="text" size="50" value="@longitude" />
+        </div>
+        <div>
+            <label>&nbsp;</label>
+            <input type="submit" value="Insert" class="submit" />
+        </div>
+    </fieldset>
+</form>
