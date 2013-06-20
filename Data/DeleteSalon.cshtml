@@ -1,0 +1,8 @@
+﻿@{
+    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+    var salonID = Request["SalonID"];
+
+    var command = "DELETE FROM Salon WHERE SalonID = @0;";
+    db.Execute(command, salonID);
+    
+}

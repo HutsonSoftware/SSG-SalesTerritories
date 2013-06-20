@@ -1,0 +1,12 @@
+﻿@{ 
+    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+
+    var salonID = Request["SalonID"];
+
+    var name = Request["Name"];
+    var address = Request["Address"];
+    var sixMonthSales = Request["SixMonthSales"];
+
+    var updateCommand = "UPDATE Salon SET Name=@0, Address=@1, SixMonthSales=@2 WHERE SalonID=@3";
+    db.Execute(updateCommand, name, address, sixMonthSales, salonID);
+}

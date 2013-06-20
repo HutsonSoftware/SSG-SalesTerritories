@@ -1,7 +1,7 @@
 ﻿@{
-    var db = Database.Open("SalonDB");
+    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
     var salonID = Request["id"];
-    var sql = @"SELECT SalonID, Name, Address, City, State, Latitude, Longitude FROM Salon WHERE CityStateID = @0 ORDER BY SalonID";
+    var sql = @"SELECT SalonID, Name, Address, City, State, Latitude, Longitude FROM Salon ORDER BY SalonID";
     var data = db.Query(sql, salonID);
     Json.Write(data, Response.Output);
 }

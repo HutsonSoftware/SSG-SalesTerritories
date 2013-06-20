@@ -1,0 +1,26 @@
+﻿@{ 
+    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+    var latitude = Request["Latitude"];
+    var longitude = Request["Longitude"];
+
+    if (IsPost) 
+    { 
+        latitude = Request["Latitude"];
+        if (latitude.IsEmpty()) 
+        {
+            ModelState.AddError("Latitude","Latitude is required.");
+        }
+        longitude = Request["Longitude"];
+        if (longitude.IsEmpty()) 
+        {
+            ModelState.AddError("Longitude","Longitude is required.");
+        }
+        
+        var insertQuery = "INSERT INTO Salon (Latitude, Longitude) VALUES (@0, @1)";
+        db.Execute(insertQuery, latitude, longitude);
+
+        var identityQuery = @"SELECT @@IDENTITY;";
+        var data = db.Query(identityQuery);
+        Json.Write(data, Response.Output);
+     }
+}
