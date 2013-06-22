@@ -1,74 +1,236 @@
 ﻿@section Scripts {
-    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?key=AIzaSyDY0kkJiTPVd2U7aTOAwhc9ySH6oHxOIYM&sensor=false"></script>
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=drawing,geometry&key=AIzaSyDY0kkJiTPVd2U7aTOAwhc9ySH6oHxOIYM&sensor=false"></script>
     <script type="text/javascript">
-        var markerFile = 'Data/CityList.cshtml';
-        var defaultLatlng = new google.maps.LatLng(35.4675, -97.5161);
-        var defaultZoom = 4;
+        var markerFile = './Data/SalonList.cshtml';
+        var polygonFile = './Data/TerritoryList.cshtml';
+        var defaultLatlng = new google.maps.LatLng(37.1078, -93.2519);
+        var defaultZoom = 5;
         var map;
         var infowindow;
         var markerList = {};
-        $.ajaxSetup({ "error": function (XMLHttpRequest, textStatus, errorThrown)
-        {
+        var polygonList = {};
+        var selectedMarker;
+        var drawingManager = new google.maps.drawing.DrawingManager({
+            drawingControlOptions: {
+                drawingModes: [
+                    google.maps.drawing.OverlayType.POLYGON
+                ]
+            }
+        });
+        var infowindowHtml = "<table>" +
+                 "<tr><td>Salon Name:</td> <td><input type='text' id='name'/> </td> </tr>" +
+                 "<tr><td>Street Address:</td> <td><input type='text' id='address'/> </td> </tr>" +
+                 "<tr><td>City:</td> <td><input type='text' id='city'/> </td> </tr>" +
+                 "<tr><td>State:</td> <td><input type='text' id='state'/> </td> </tr>" +
+                 "<tr><td>Zip:</td> <td><input type='text' id='zip'/> </td> </tr>" +
+                 "<tr><td>Six Month Sales:</td> <td><input type='text' id='sixMonthSales'/> </td> </tr>" +
+                 "<tr><td></td><td><input type='button' value='Save & Close' onclick='saveSalonDataFromForm()'/></td></tr></table>";
+
+        var geocoder = new google.maps.Geocoder();
+
+        $.ajaxSetup({ "error": function (XMLHttpRequest, textStatus, errorThrown) {
             alert(textStatus);
             alert(errorThrown);
             alert(XMLHttpRequest.responseText);
         }
         });
+
         var myOptions = {
             zoom: defaultZoom,
             center: defaultLatlng,
             mapTypeId: google.maps.MapTypeId.ROADMAP
         }
-        function loadMap()
-        {
-            map = new google.maps.Map(document.getElementById("googleMap"), myOptions);
-            infowindow = new google.maps.InfoWindow();
-            loadMarkers();
+
+        function markerClicked() {
+            selectedMarker = this;
+
+            infowindow.open(map, this);
         }
 
-        function loadMarkers()
-        {
-            $.getJSON(markerFile, function (data)
-            {
-                $.each(data, function (i, field)
-                {
+        function infowindowLoaded() {
+            $.getJSON('./Data/Salon.cshtml?SalonID=' + selectedMarker.id, function (data) {
+                document.getElementById('name').value = data[0]['Name'];
+                document.getElementById('address').value = data[0]['Address'];
+                document.getElementById('city').value = data[0]['City'];
+                document.getElementById('state').value = data[0]['State'];
+                document.getElementById('zip').value = data[0]['Zip'];
+                document.getElementById('sixMonthSales').value = data[0]['SixMonthSales'];
+            });
+        }
+
+        function markerRightClicked() {
+            var markerToDelete = this;
+
+            $.getJSON('./Data/Salon.cshtml?SalonID=' + this.id, function (data) {
+                var salonName = data[0]['Name'];
+
+                var confirmationResponse = window.confirm("Are you sure you want to delete this salon? (" + salonName + ")");
+
+                if (confirmationResponse) {
+                    markerToDelete.setMap(null);
+                    var salonId = markerToDelete.id;
+                    var url = "./Data/DeleteSalon.cshtml?SalonID=" + salonId;
+                    $.get(url);
+                }
+            });
+        }
+
+        function addSalonMarker(event) {
+            marker = new google.maps.Marker({
+                position: event.latLng,
+                map: map
+            });
+
+            addSalonToDatabase(marker);
+
+            marker.addListener('click', markerClicked);
+            marker.addListener('rightclick', markerRightClicked);
+        }
+
+        function addSalonToDatabase(marker) {
+            //we attempt here to fill in some of the geographical information for the user using google's geocoder API
+            geocoder.geocode({ location: marker.getPosition() }, function (geocoderResult) {
+                var queryString = createSalonQueryString(marker, geocoderResult);
+
+                var url = "./Data/InsertSalon.cshtml?" + queryString;
+
+                $.post(url, function (data) {
+                    var salonID = $.parseJSON(data)[0].Column1;
+                    markerList[marker] = salonID;
+                    marker.setOptions({ id: salonID });
+                });
+            });
+        }
+
+        function createSalonQueryString(marker, geocoderResult) {
+            var addressComponents = geocoderResult[0]['address_components'];
+
+            if (addressComponents) {
+                var city = findAddressComponent(addressComponents, 'locality'); //a city
+                var state = findAddressComponent(addressComponents, 'administrative_area_level_1'); //a state, by google's definition
+                var zip = findAddressComponent(addressComponents, 'postal_code');
+                var route = findAddressComponent(addressComponents, 'route');
+                var streetNumber = findAddressComponent(addressComponents, 'street_number')
+            }
+
+            var queryString = "Latitude=" + marker.getPosition().lat() + "&Longitude=" + marker.getPosition().lng();
+
+            if (city) {
+                queryString += "&City=" + city;
+            }
+
+            if (state) {
+                queryString += "&State=" + state;
+            }
+
+            if (zip) {
+                queryString += "&Zip=" + zip;
+            }
+
+            if (route && streetNumber) {
+                queryString += "&Address=" + streetNumber + ' ' + route;
+            }
+
+            return queryString;
+        }
+
+        function findAddressComponent(addressComponents, type) {
+            for (component in addressComponents) {
+                component = addressComponents[component];
+                for (componentType in component['types']) {
+                    if (type == component['types'][componentType]) {
+                        return component['short_name'];
+                    }
+                }
+            }
+
+            return undefined;
+        }
+
+        function loadMap() {
+            map = new google.maps.Map(document.getElementById("googleMap"), myOptions);
+            google.maps.event.addListener(map, 'click', addSalonMarker);
+
+            drawingManager.setMap(map);
+            google.maps.event.addListener(drawingManager, 'polygoncomplete', polygonComplete);
+
+            infowindow = new google.maps.InfoWindow({ content: infowindowHtml });
+
+            google.maps.event.addListener(infowindow, 'domready', infowindowLoaded);
+
+            loadMarkers();
+            loadPolygons();
+        }
+
+        function loadMarkers() {
+            $.getJSON(markerFile, function (data) {
+                $.each(data, function (i, field) {
                     loadMarker(field);
                 });
             });
         }
-        function loadMarker(markerData)
-        {
+
+        function loadMarker(markerData) {
             var myLatlng = new google.maps.LatLng(markerData['Latitude'], markerData['Longitude']);
             var marker = new google.maps.Marker({
-                id: markerData['CityStateID'],
+                id: markerData['SalonID'],
                 map: map,
-                title: markerData['City'],
                 position: myLatlng
             });
-            markerList[marker.id] = marker;
 
-            google.maps.event.addListener(marker, 'click', function ()
-            {
-                var url = "~/City.cshtml?id=" + mark['CityStateID'].toString;
-                alert(url);
-                window.location.assign(url);
-                //showMarker(marker.id);
-            });            
+            markerList[marker] = markerData['SalonID'];
+
+            marker.addListener('click', markerClicked);
+            marker.addListener('rightclick', markerRightClicked);
         }
-        function showMarker(markerId)
-        {
-            var marker = markerList[markerId];
-            if (marker)
-            {
-                $.get('data/' + marker.id + '.html', function (data)
-                {
-                    infowindow.setContent(data);
-                    infowindow.open(map, marker);
+
+        function loadPolygons() {
+            $.getJSON(polygonFile, function (data) {
+                $.each(data, function (i, field) {
+                    loadPolygon(field);
                 });
-            } else
-            {
-                alert('Error marker not found: ' + markerId);
+            });
+        }
+
+        function loadPolygon(polygonData) {
+            var polygon = new google.maps.Polygon({
+                paths: google.maps.geometry.encoding.decodePath(polygonData['EncodedPath']),
+                editable: true
+            });
+
+            polygon.setMap(map);
+
+            polygonList[polygon] = polygonData['TerritoryID'];
+        }
+
+        function saveSalonDataFromForm() {
+            event.stopPropagation();
+
+            var salonName = escape(document.getElementById('name').value);
+            var address = escape(document.getElementById('address').value);
+            var city = escape(document.getElementById('city').value);
+            var state = escape(document.getElementById('state').value);
+            var zip = escape(document.getElementById('zip').value);
+            var sixMonthSales = escape(document.getElementById('sixMonthSales').value);
+
+            var salesRegex = new RegExp("[0-9]+(\.?[0-9]*)?");
+            if (!salesRegex.test(sixMonthSales)) {
+                alert('Please enter a valid decimal number for the six month sales.');
+            } else {
+                var url = "./Data/UpdateSalon.cshtml?Name=" + salonName + "&Address=" + address + "&City=" + city + "&State=" + state + "&Zip=" + zip + "&SixMonthSales=" + sixMonthSales + "&SalonID=" + selectedMarker.id;
+                $.post(url);
+                infowindow.close();
             }
+        }
+
+        function polygonComplete(polygon) {
+            polygon.setEditable(true);
+
+            var encodedPath = google.maps.geometry.encoding.encodePath(polygon.getPath());
+
+            $.getJSON("./Data/InsertTerritory.cshtml?EncodedPath=" + encodedPath, function (data) {
+                polygonList[polygon] = $.parseJSON(data)[0].Column1;
+            });
         }
 
         google.maps.event.addDomListener(window, 'load', loadMap);
@@ -78,31 +240,13 @@
 @{
     Layout = "~/_SiteLayout.cshtml";
     Page.Title = "Sales Territories";
-
-    var salonDB = Database.Open("SalonDB");
-    var cities = salonDB.Query("SELECT CityStateID, City, Latitude, Longitude FROM CityState");
 }
 
 <hgroup class="title">
     <h1>@Page.Title.</h1>
-    <h2>Map of Salons by City</h2>
+    <h2>Salon Map</h2>
 </hgroup>
 
 <article>
     <div id="googleMap" style="width: 100%; height: 500px;"></div>
 </article>
-
-<aside>
-    <h3>Cities</h3>
-    <p>
-        City level views of Sales Territories
-    </p>
-    <ul>
-        @foreach (var city in cities) {
-            <li><a href="~/City.cshtml?id=@city.CityStateID">@city.City</a></li>
-        }
-    </ul>
-        <p>
-        <a href="InsertCity">Add New City</a>
-    </p>
-</aside>

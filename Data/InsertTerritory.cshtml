@@ -1,0 +1,11 @@
+﻿@{
+    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+    var encodedPath = Request["EncodedPath"];
+
+    var insertQuery = "INSERT INTO Territory (EncodedPath) VALUES (@0)";
+    db.Execute(insertQuery, encodedPath);
+
+    var identityQuery = @"SELECT @@IDENTITY FROM Territory;";
+    var data = db.Query(identityQuery);
+    Json.Write(data, Response.Output);
+}

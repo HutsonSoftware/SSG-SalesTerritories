@@ -5,8 +5,11 @@
 
     var name = Request["Name"];
     var address = Request["Address"];
+    var city = Request["City"];
+    var state = Request["State"];
+    var zip = Request["Zip"];
     var sixMonthSales = Request["SixMonthSales"];
 
-    var updateCommand = "UPDATE Salon SET Name=@0, Address=@1, SixMonthSales=@2 WHERE SalonID=@3";
-    db.Execute(updateCommand, name, address, sixMonthSales, salonID);
+    var updateCommand = "UPDATE Salon SET Name=@0, Address=@1, City=@2, State=@3, Zip=@4, SixMonthSales=@5 WHERE SalonID=@6";
+    db.Execute(updateCommand, name, address, city, state, zip, sixMonthSales, salonID);
 }
