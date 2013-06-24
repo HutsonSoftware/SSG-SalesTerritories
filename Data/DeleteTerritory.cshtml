@@ -1,0 +1,7 @@
+﻿@{
+    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+    var territoryID = Request["TerritoryID"];
+
+    var command = "DELETE FROM Territory WHERE TerritoryID = @0;";
+    db.Execute(command, territoryID); 
+}

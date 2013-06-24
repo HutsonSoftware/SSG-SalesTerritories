@@ -6,9 +6,9 @@
         var defaultLatlng = new google.maps.LatLng(37.1078, -93.2519);
         var defaultZoom = 5;
         var map;
-        var infowindow;
-        var markerList = {};
-        var polygonList = {};
+        var markerInfoWindow;
+        var markerList = [];
+        var polygonList = [];
         var selectedMarker;
         var drawingManager = new google.maps.drawing.DrawingManager({
             drawingControlOptions: {
@@ -17,7 +17,7 @@
                 ]
             }
         });
-        var infowindowHtml = "<table>" +
+        var markerInfoWindowHtml = "<table>" +
                  "<tr><td>Salon Name:</td> <td><input type='text' id='name'/> </td> </tr>" +
                  "<tr><td>Street Address:</td> <td><input type='text' id='address'/> </td> </tr>" +
                  "<tr><td>City:</td> <td><input type='text' id='city'/> </td> </tr>" +
@@ -41,15 +41,80 @@
             mapTypeId: google.maps.MapTypeId.ROADMAP
         }
 
+        function loadMap() {
+            map = new google.maps.Map(document.getElementById("googleMap"), myOptions);
+            google.maps.event.addListener(map, 'click', addSalonMarker);
+
+            drawingManager.setMap(map);
+            google.maps.event.addListener(drawingManager, 'polygoncomplete', polygonComplete);
+
+            markerInfoWindow = new google.maps.InfoWindow({ content: markerInfoWindowHtml });
+
+            google.maps.event.addListener(markerInfoWindow, 'domready', markerInfoWindowLoaded);
+
+            loadMarkers();
+            loadPolygons();
+        }
+
+        function loadMarkers() {
+            $.getJSON(markerFile, function (data) {
+                $.each(data, function (i, field) {
+                    loadMarker(field);
+                });
+            });
+        }
+
+        function loadMarker(markerData) {
+            var myLatlng = new google.maps.LatLng(markerData['Latitude'], markerData['Longitude']);
+            var marker = new google.maps.Marker({
+                id: markerData['SalonID'],
+                name: unescape(markerData['Name']),
+                sixMonthSales: markerData['SixMonthSales'],
+                map: map,
+                position: myLatlng
+            });
+
+            markerList.push(marker);
+
+            marker.addListener('click', markerClicked);
+            marker.addListener('rightclick', markerRightClicked);
+        }
+
+        function loadPolygons() {
+            $.getJSON(polygonFile, function (data) {
+                $.each(data, function (i, field) {
+                    loadPolygon(field);
+                });
+            });
+        }
+
+        function loadPolygon(polygonData) {
+            var polygon = new google.maps.Polygon({
+                paths: google.maps.geometry.encoding.decodePath(polygonData['EncodedPath']),
+                editable: true,
+                id: polygonData['TerritoryID']
+            });
+
+            polygon.setMap(map);
+
+            polygon.addListener('click', addSalonMarker);
+            polygon.addListener('rightclick', polygonRightClicked);
+            polygon.addListener('mouseover', polygonMouseOver);
+            polygon.addListener('mousemove', polygonMouseMove);
+            polygon.addListener('mouseout', polygonMouseOut);
+
+            polygonList.push(polygon);
+        }
+
         function markerClicked() {
             selectedMarker = this;
 
-            infowindow.open(map, this);
+            markerInfoWindow.open(map, this);
         }
 
-        function infowindowLoaded() {
+        function markerInfoWindowLoaded() {
             $.getJSON('./Data/Salon.cshtml?SalonID=' + selectedMarker.id, function (data) {
-                document.getElementById('name').value = data[0]['Name'];
+                document.getElementById('name').value = unescape(data[0]['Name']);
                 document.getElementById('address').value = data[0]['Address'];
                 document.getElementById('city').value = data[0]['City'];
                 document.getElementById('state').value = data[0]['State'];
@@ -67,6 +132,7 @@
                 var confirmationResponse = window.confirm("Are you sure you want to delete this salon? (" + salonName + ")");
 
                 if (confirmationResponse) {
+                    markerList = filterItem(markerList, markerToDelete);
                     markerToDelete.setMap(null);
                     var salonId = markerToDelete.id;
                     var url = "./Data/DeleteSalon.cshtml?SalonID=" + salonId;
@@ -75,13 +141,70 @@
             });
         }
 
+        function polygonRightClicked() {
+            var polygonToDelete = this;
+
+            $.getJSON('./Data/DeleteTerritory.cshtml?TerritoryID=' + this.id, function (data) {
+
+                var confirmationResponse = window.confirm("Are you sure you want to delete this territory?");
+
+                if (confirmationResponse) {
+                    polygonList = filterItem(polygonList, polygonToDelete);
+                    polygonToDelete.setMap(null);
+                    var territoryId = polygonToDelete.id;
+                    var url = "./Data/DeleteTerritory.cshtml?SalonID=" + territoryId;
+                    $.get(url);
+                }
+            });
+        }
+
+        function polygonMouseOver() {
+            $('#territoryInfo').empty();
+            $('#salonTotal').empty();
+
+            populateTerritoryInfoDiv(this);
+        }
+
+        function polygonMouseMove() {
+            if (!$('#territoryInfo').html().length) {
+                populateTerritoryInfoDiv(this);
+            }
+        }
+
+        function polygonMouseOut() {
+            $('#territoryInfo').empty();
+            $('#salonTotal').empty();
+
+            $('#territoryInfo').css('border-bottom-style', 'none');
+        }
+
+        function polygonComplete(polygon) {
+            polygon.setEditable(true);
+
+            var encodedPath = google.maps.geometry.encoding.encodePath(polygon.getPath());
+
+            polygon.addListener('click', addSalonMarker);
+            polygon.addListener('rightclick', polygonRightClicked);
+            polygon.addListener('mouseover', polygonMouseOver);
+            polygon.addListener('mousemove', polygonMouseMove);
+            polygon.addListener('mouseout', polygonMouseOut);
+
+            $.getJSON("./Data/InsertTerritory.cshtml?EncodedPath=" + encodedPath, function (data) {
+                polygonList.push(polygon);
+                polygon.setOptions({ id: data[0]['Column1'] })
+            });
+        }
+
         function addSalonMarker(event) {
             marker = new google.maps.Marker({
+                name: 'My New Salon',
+                sixMonthSales: 0.0,
                 position: event.latLng,
                 map: map
             });
 
             addSalonToDatabase(marker);
+            markerList.push(marker);
 
             marker.addListener('click', markerClicked);
             marker.addListener('rightclick', markerRightClicked);
@@ -96,7 +219,6 @@
 
                 $.post(url, function (data) {
                     var salonID = $.parseJSON(data)[0].Column1;
-                    markerList[marker] = salonID;
                     marker.setOptions({ id: salonID });
                 });
             });
@@ -147,62 +269,6 @@
             return undefined;
         }
 
-        function loadMap() {
-            map = new google.maps.Map(document.getElementById("googleMap"), myOptions);
-            google.maps.event.addListener(map, 'click', addSalonMarker);
-
-            drawingManager.setMap(map);
-            google.maps.event.addListener(drawingManager, 'polygoncomplete', polygonComplete);
-
-            infowindow = new google.maps.InfoWindow({ content: infowindowHtml });
-
-            google.maps.event.addListener(infowindow, 'domready', infowindowLoaded);
-
-            loadMarkers();
-            loadPolygons();
-        }
-
-        function loadMarkers() {
-            $.getJSON(markerFile, function (data) {
-                $.each(data, function (i, field) {
-                    loadMarker(field);
-                });
-            });
-        }
-
-        function loadMarker(markerData) {
-            var myLatlng = new google.maps.LatLng(markerData['Latitude'], markerData['Longitude']);
-            var marker = new google.maps.Marker({
-                id: markerData['SalonID'],
-                map: map,
-                position: myLatlng
-            });
-
-            markerList[marker] = markerData['SalonID'];
-
-            marker.addListener('click', markerClicked);
-            marker.addListener('rightclick', markerRightClicked);
-        }
-
-        function loadPolygons() {
-            $.getJSON(polygonFile, function (data) {
-                $.each(data, function (i, field) {
-                    loadPolygon(field);
-                });
-            });
-        }
-
-        function loadPolygon(polygonData) {
-            var polygon = new google.maps.Polygon({
-                paths: google.maps.geometry.encoding.decodePath(polygonData['EncodedPath']),
-                editable: true
-            });
-
-            polygon.setMap(map);
-
-            polygonList[polygon] = polygonData['TerritoryID'];
-        }
-
         function saveSalonDataFromForm() {
             event.stopPropagation();
 
@@ -213,24 +279,63 @@
             var zip = escape(document.getElementById('zip').value);
             var sixMonthSales = escape(document.getElementById('sixMonthSales').value);
 
+            selectedMarker.name = unescape(salonName);
+            selectedMarker.sixMonthSales = sixMonthSales;
+
             var salesRegex = new RegExp("[0-9]+(\.?[0-9]*)?");
             if (!salesRegex.test(sixMonthSales)) {
                 alert('Please enter a valid decimal number for the six month sales.');
             } else {
                 var url = "./Data/UpdateSalon.cshtml?Name=" + salonName + "&Address=" + address + "&City=" + city + "&State=" + state + "&Zip=" + zip + "&SixMonthSales=" + sixMonthSales + "&SalonID=" + selectedMarker.id;
                 $.post(url);
-                infowindow.close();
+                markerInfoWindow.close();
             }
         }
 
-        function polygonComplete(polygon) {
-            polygon.setEditable(true);
+        function populateTerritoryInfoDiv(polygon) {
+            var mappings = calculateMarkerPolygonMappings(markerList, [polygon]);
+            var salonsInPolygon = mappings[polygon];
+            var territoryInfoDiv = $('#territoryInfo');
+            var salesTotal = 0.0;
 
-            var encodedPath = google.maps.geometry.encoding.encodePath(polygon.getPath());
-
-            $.getJSON("./Data/InsertTerritory.cshtml?EncodedPath=" + encodedPath, function (data) {
-                polygonList[polygon] = $.parseJSON(data)[0].Column1;
+            $.each(salonsInPolygon, function (i, salon) {
+                territoryInfoDiv.append('<p>' + salon.name + '</p>');
+                territoryInfoDiv.css('border-bottom-style', 'solid');
+                salesTotal += parseFloat(salon.sixMonthSales);
             });
+
+            $('#salonTotal').append('<p>Total six month sales: $' + salesTotal + '</p>');
+        }
+
+        function calculateMarkerPolygonMappings(markers, polygons) {
+            var mappings = {};
+
+            for (polygon in polygons) {
+                polygon = polygons[polygon];
+                var containedMarkers = [];
+                for (marker in markers) {
+                    marker = markers[marker];
+                    if (google.maps.geometry.poly.containsLocation(marker.getPosition(), polygon)) {
+                        containedMarkers.push(marker);
+                    }
+                }
+                mappings[polygon] = containedMarkers;
+            }
+
+            return mappings;
+        }
+
+        function filterItem(items, itemToRemove) {
+            var filteredList = [];
+
+            for (item in items) {
+                item = items[item];
+                if (!(itemToRemove === item)) {
+                    filteredList.push(item);
+                }
+            }
+
+            return filteredList;
         }
 
         google.maps.event.addDomListener(window, 'load', loadMap);
@@ -243,10 +348,17 @@
 }
 
 <hgroup class="title">
-    <h1>@Page.Title.</h1>
+    <h1>@Page.Title</h1>
     <h2>Salon Map</h2>
 </hgroup>
 
 <article>
-    <div id="googleMap" style="width: 100%; height: 500px;"></div>
+    <div id="googleMap" style="height: 800px;"></div>
 </article>
+
+<div id="territoryInfoContainer" style="height: 800px; float: left; width: 25%; padding-left: 5%">
+    <h4>Selected Sales Territory:</h4>
+    <div id="territoryInfo">
+    </div>
+    <div id="salonTotal"></div>
+</div>
