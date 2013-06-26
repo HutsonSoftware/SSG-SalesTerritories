@@ -103,6 +103,8 @@
             polygon.addListener('mousemove', polygonMouseMove);
             polygon.addListener('mouseout', polygonMouseOut);
 
+            setAlterationListenersForPolygon(polygon);
+
             polygonList.push(polygon);
         }
 
@@ -189,10 +191,25 @@
             polygon.addListener('mousemove', polygonMouseMove);
             polygon.addListener('mouseout', polygonMouseOut);
 
+            setAlterationListenersForPolygon(polygon);
+
             $.getJSON("./Data/InsertTerritory.cshtml?EncodedPath=" + encodedPath, function (data) {
                 polygonList.push(polygon);
                 polygon.setOptions({ id: data[0]['Column1'] })
             });
+        }
+
+        function setAlterationListenersForPolygon(polygon) {
+            var path = polygon.getPath();
+
+            var polygonAltered = function() {
+                var encodedPath = google.maps.geometry.encoding.encodePath(path);
+
+                $.get("./Data/UpdateTerritory.cshtml?TerritoryID=" + polygon.id + "&EncodedPath=" encodedPath);
+            };
+
+            google.maps.event.addListener(path, 'set_at', polygonAltered);
+            google.maps.event.addListener(path, 'insert_at', polygonAltered);
         }
 
         function addSalonMarker(event) {

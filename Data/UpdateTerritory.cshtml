@@ -1,0 +1,8 @@
+@{
+    var db = Database.OpenConnectionString("data source=App_Data\\SSG-SalesTerritories.sdf");
+    var territoryID = Request["TerritoryID"];
+    var encodedPath = Request["EncodedPath"];
+
+    var updateQuery = "UPDATE Territory SET EncodedPath=@0 WHERE TerritoryID=@1";
+    db.Execute(insertQuery, encodedPath, territoryID);
+}
