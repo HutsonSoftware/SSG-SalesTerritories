@@ -1,0 +1,26 @@
+﻿@{
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Salon List";
+
+    var db = Database.Open("SSG-SalesTerritories");
+    var salons = db.Query("SELECT s.SalonID, s.Name, s.Address, s.City, s.State, s.Zip, s.Latitude, s.Longitude FROM Salon s ORDER BY s.Name");
+    var grid = new WebGrid(salons, ajaxUpdateContainerId: "grid");                    
+}
+
+<hgroup class="title">
+    <h1>@Page.Title</h1>
+</hgroup>
+<article>
+    @grid.GetHtml(tableStyle: "ui-widget ui-widget-content",
+                    headerStyle: "ui-widget-header",
+                    columns: grid.Columns(
+                    grid.Column("Name"),
+                    grid.Column("Address"),
+                    grid.Column("City"),
+                    grid.Column("State"),
+                    grid.Column("Zip"),
+                    grid.Column("Latitude"),
+                    grid.Column("Longitude")
+                )
+    )
+</article>
