@@ -201,13 +201,13 @@
 
         function setAlterationListenersForPolygon(polygon) {
             var path = polygon.getPath();
-
+        
             var polygonAltered = function() {
                 var encodedPath = google.maps.geometry.encoding.encodePath(path);
-
-                $.get("./Data/UpdateTerritory.cshtml?TerritoryID=" + polygon.id + "&EncodedPath=" encodedPath);
+        
+                $.get("./Data/UpdateTerritory.cshtml?TerritoryID=" + polygon.id + "&EncodedPath=" + encodedPath);
             };
-
+        
             google.maps.event.addListener(path, 'set_at', polygonAltered);
             google.maps.event.addListener(path, 'insert_at', polygonAltered);
         }

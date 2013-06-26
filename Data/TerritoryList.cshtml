@@ -1,5 +1,5 @@
 ﻿@{
-    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+    var db = Database.Open("SSG-SalesTerritories");
     var territoryID = Request["TerritoryID"];
     var sql = @"SELECT TerritoryID, EncodedPath FROM Territory ORDER BY TerritoryID";
     var data = db.Query(sql, territoryID);

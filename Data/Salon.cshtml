@@ -1,5 +1,5 @@
 ﻿@{
-    var db = Database.OpenConnectionString("data source=C:\\Users\\Cakes\\Documents\\GitHub\\SSG-SalesTerritories\\App_Data\\SSG-SalesTerritories.sdf");
+    var db = Database.Open("SSG-SalesTerritories");
     var salonID = Request["SalonID"];
     var sql = @"SELECT Name, Address, City, State, Zip, Latitude, Longitude, SalesRepID, SixMonthSales FROM Salon WHERE SalonID = @0";
     var data = db.Query(sql, salonID);
