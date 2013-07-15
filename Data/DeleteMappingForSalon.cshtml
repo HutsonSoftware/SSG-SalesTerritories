@@ -1,0 +1,7 @@
+﻿@{
+    var db = Database.Open("SSG-SalesTerritories");
+    var salonID = Request["SalonID"];
+
+    var command = "DELETE FROM Mapping WHERE SalonID = @0;";
+    db.Execute(command, salonID);
+}

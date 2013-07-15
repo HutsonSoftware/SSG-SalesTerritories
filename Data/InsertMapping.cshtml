@@ -1,0 +1,8 @@
+﻿@{
+    var db = Database.Open("SSG-SalesTerritories");
+    var territoryID = Request["TerritoryID"];
+    var salonID = Request["SalonID"];
+
+    var command = "INSERT INTO Mapping (TerritoryID, SalonID) VALUES (@0, @1)";
+    db.Execute(command, territoryID, salonID);
+}

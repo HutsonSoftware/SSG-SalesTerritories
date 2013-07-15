@@ -15,4 +15,18 @@
                     grid.Column("Latitude"),
                     grid.Column("Longitude")
                 )
-    )
+    )ASP.NET Site failed starting up, see full details for more info
+
+System.Web.HttpException (0x80004005): The pre-application start initialization method Start on type Microsoft.Web.WebPages.OAuth.PreApplicationStartCode threw an exception with the following error message: Could not load file or assembly 'DotNetOpenAuth.Core, Version=4.1.0.0, Culture=neutral, PublicKeyToken=2780ccd10d57b246' or one of its dependencies. The system cannot find the file specified.. ---> System.InvalidOperationException: The pre-application start initialization method Start on type Microsoft.Web.WebPages.OAuth.PreApplicationStartCode threw an exception with the following error message: Could not load file or assembly 'DotNetOpenAuth.Core, Version=4.1.0.0, Culture=neutral, PublicKeyToken=2780ccd10d57b246' or one of its dependencies. The system cannot find the file specified.. ---> System.IO.FileNotFoundException: Could not load file or assembly 'DotNetOpenAuth.Core, Version=4.1.0.0, Culture=neutral, PublicKeyToken=2780ccd10d57b246' or one of its dependencies. The system cannot find the file specified. ---> System.IO.FileNotFoundException: Could not load file or assembly 'DotNetOpenAuth.Core, Version=4.0.0.0, Culture=neutral, PublicKeyToken=2780ccd10d57b246' or one of its dependencies. The system cannot find the file specified.
+
+   --- End of inner exception stack trace ---
+   at Microsoft.Web.WebPages.OAuth.PreApplicationStartCode.Start()
+   --- End of inner exception stack trace ---
+   at System.Web.Compilation.BuildManager.InvokePreStartInitMethodsCore(ICollection`1 methods, Func`1 setHostingEnvironmentCultures)
+   at System.Web.Compilation.BuildManager.InvokePreStartInitMethods(ICollection`1 methods)
+   at System.Web.Compilation.BuildManager.CallPreStartInitMethods(String preStartInitListPath)
+   at System.Web.Compilation.BuildManager.ExecutePreAppStart()
+   at System.Web.Hosting.HostingEnvironment.Initialize(ApplicationManager appManager, IApplicationHost appHost, IConfigMapPathFactory configMapPathFactory, HostingEnvironmentParameters hostingParameters, PolicyLevel policyLevel, Exception appDomainCreationException)
+   at Microsoft.WebMatrix.Editor.CBMWrapper.HandleExceptionAndReturnEmptyArray(Exception ex, Boolean throwOnHttpException)
+   at Microsoft.WebMatrix.Editor.CBMWrapper.GetReferences()
+   at Microsoft.WebMatrix.Editor.Roslyn.ProjectSystemImpl.CbmAppDomainStarted(Object sender, EventArgs e)

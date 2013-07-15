@@ -662,7 +662,7 @@ tr.pager td {
     /* page content */
     article, aside {
         float: none;
-        width: 70%;
+        width: 100%;
     }
 
     /* ordered list */

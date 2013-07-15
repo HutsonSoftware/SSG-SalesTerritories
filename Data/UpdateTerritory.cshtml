@@ -2,7 +2,8 @@
     var db = Database.Open("SSG-SalesTerritories");
     var territoryID = Request["TerritoryID"];
     var encodedPath = Request["EncodedPath"];
+    var name = Request["Name"];
 
-    var updateQuery = "UPDATE Territory SET EncodedPath=@0 WHERE TerritoryID=@1";
-    db.Execute(updateQuery, encodedPath, territoryID);
+    var updateQuery = "UPDATE Territory SET EncodedPath=@0, Name=@1 WHERE TerritoryID=@2";
+    db.Execute(updateQuery, encodedPath, name, territoryID);
 }

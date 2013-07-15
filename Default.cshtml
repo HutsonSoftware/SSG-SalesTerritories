@@ -35,6 +35,22 @@
         }
         });
 
+        var shiftDown = false;
+        var setShiftDown = function (event) {
+            if (event.keyCode === 16 || event.charCode === 16) {
+                window.shiftDown = true;
+            }
+        };
+
+        var setShiftUp = function (event) {
+            if (event.keyCode === 16 || event.charCode === 16) {
+                window.shiftDown = false;
+            }
+        };
+
+        window.addEventListener ? document.addEventListener('keydown', setShiftDown) : document.attachEvent('keydown', setShiftDown);
+        window.addEventListener ? document.addEventListener('keyup', setShiftUp) : document.attachEvent('keyup', setShiftUp);
+
         var myOptions = {
             zoom: defaultZoom,
             center: defaultLatlng,
@@ -92,12 +108,14 @@
             var polygon = new google.maps.Polygon({
                 paths: google.maps.geometry.encoding.decodePath(polygonData['EncodedPath']),
                 editable: true,
-                id: polygonData['TerritoryID']
+                id: polygonData['TerritoryID'],
+                name: polygonData['Name'],
+                encodedPath: polygonData['EncodedPath']
             });
 
             polygon.setMap(map);
 
-            polygon.addListener('click', addSalonMarker);
+            polygon.addListener('click', polygonClicked);
             polygon.addListener('rightclick', polygonRightClicked);
             polygon.addListener('mouseover', polygonMouseOver);
             polygon.addListener('mousemove', polygonMouseMove);
@@ -136,11 +154,20 @@
                 if (confirmationResponse) {
                     markerList = filterItem(markerList, markerToDelete);
                     markerToDelete.setMap(null);
+                    deleteMappingsForMarker(markerToDelete.id);
                     var salonId = markerToDelete.id;
                     var url = "./Data/DeleteSalon.cshtml?SalonID=" + salonId;
                     $.get(url);
                 }
             });
+        }
+
+        function polygonClicked(event) {
+            if (window.shiftDown) {
+                promptForTerritoryName(this);
+            } else {
+                addSalonMarker(event);
+            }
         }
 
         function polygonRightClicked() {
@@ -153,6 +180,7 @@
                 if (confirmationResponse) {
                     polygonList = filterItem(polygonList, polygonToDelete);
                     polygonToDelete.setMap(null);
+                    deleteMappingsForPolygon(polygonToDelete.id);
                     var territoryId = polygonToDelete.id;
                     var url = "./Data/DeleteTerritory.cshtml?SalonID=" + territoryId;
                     $.get(url);
@@ -169,6 +197,7 @@
 
         function polygonMouseMove() {
             if (!$('#territoryInfo').html().length) {
+                $('#salonTotal').empty();
                 populateTerritoryInfoDiv(this);
             }
         }
@@ -185,7 +214,7 @@
 
             var encodedPath = google.maps.geometry.encoding.encodePath(polygon.getPath());
 
-            polygon.addListener('click', addSalonMarker);
+            polygon.addListener('click', polygonClicked);
             polygon.addListener('rightclick', polygonRightClicked);
             polygon.addListener('mouseover', polygonMouseOver);
             polygon.addListener('mousemove', polygonMouseMove);
@@ -195,19 +224,41 @@
 
             $.getJSON("./Data/InsertTerritory.cshtml?EncodedPath=" + encodedPath, function (data) {
                 polygonList.push(polygon);
-                polygon.setOptions({ id: data[0]['Column1'] })
+                polygon.setOptions({
+                    id: data[0]['Column1'],
+                    name: 'My New Territory',
+                    encodedPath: encodedPath,
+                    markers: calculateMarkerPolygonMappings(markerList, polygon)
+                })
+
+                for (marker in markerList) {
+                    marker = markerList[marker];
+                    if (google.maps.geometry.poly.containsLocation(marker.getPosition(), polygon)) {
+                        polygon.markers.push(marker);
+                        insertMapping(polygon.id, marker.id);
+                    }
+                }
             });
         }
 
         function setAlterationListenersForPolygon(polygon) {
             var path = polygon.getPath();
-        
-            var polygonAltered = function() {
-                var encodedPath = google.maps.geometry.encoding.encodePath(path);
-        
-                $.get("./Data/UpdateTerritory.cshtml?TerritoryID=" + polygon.id + "&EncodedPath=" + encodedPath);
+
+            var polygonAltered = function () {
+                polygon.encodedPath = google.maps.geometry.encoding.encodePath(path);
+
+                deleteMappingsForPolygon(polygon.id, function () {
+                    polygon.markers = calculateMarkerPolygonMappings(markerList, polygon);
+
+                    for (marker in polygon.markers) {
+                        marker = polygon.markers[marker];
+                        insertMapping(polygon.id, marker.id);
+                    }
+
+                    updatePolygon(polygon);
+                });
             };
-        
+
             google.maps.event.addListener(path, 'set_at', polygonAltered);
             google.maps.event.addListener(path, 'insert_at', polygonAltered);
         }
@@ -237,8 +288,25 @@
                 $.post(url, function (data) {
                     var salonID = $.parseJSON(data)[0].Column1;
                     marker.setOptions({ id: salonID });
+
+                    for (polygon in polygonList) {
+                        polygon = polygonList[polygon];
+                        if (google.maps.geometry.poly.containsLocation(marker.getPosition(), polygon)) {
+                            polygon.markers.push(marker);
+                            insertMapping(polygon.id, marker.id);
+                        }
+                    }
                 });
             });
+        }
+
+        function promptForTerritoryName(polygon) {
+            var polygonName = prompt("Enter the name of the territory:", polygon.name);
+
+            if (polygonName && polygonName != polygon.name) {
+                polygon.name = polygonName;
+                updatePolygon(polygon);
+            }
         }
 
         function createSalonQueryString(marker, geocoderResult) {
@@ -309,37 +377,48 @@
             }
         }
 
+        function insertMapping(polygonID, salonID) {
+            $.get("./Data/InsertMapping.cshtml?TerritoryID=" + polygonID + "&SalonID=" + salonID);
+        }
+
+        function deleteMappingsForPolygon(polygonID, callback) {
+            $.get("./Data/DeleteMappingForTerritory.cshtml?TerritoryID=" + polygonID, callback);
+        }
+
+        function deleteMappingsForMarker(markerID, callback) {
+            $.get("./Data/DeleteMappingForSalon.cshtml?SalonID=" + markerID, callback);
+        }
+
+        function updatePolygon(polygon) {
+            $.get("./Data/UpdateTerritory.cshtml?TerritoryID=" + polygon.id + "&EncodedPath=" + polygon.encodedPath + "&Name=" + polygon.name);
+        }
+
         function populateTerritoryInfoDiv(polygon) {
-            var mappings = calculateMarkerPolygonMappings(markerList, [polygon]);
-            var salonsInPolygon = mappings[polygon];
             var territoryInfoDiv = $('#territoryInfo');
             var salesTotal = 0.0;
 
-            $.each(salonsInPolygon, function (i, salon) {
+            polygon.markers = calculateMarkerPolygonMappings(markerList, polygon)
+
+            $.each(polygon.markers, function (i, salon) {
                 territoryInfoDiv.append('<p>' + salon.name + '</p>');
                 territoryInfoDiv.css('border-bottom-style', 'solid');
                 salesTotal += parseFloat(salon.sixMonthSales);
             });
 
-            $('#salonTotal').append('<p>Total six month sales: $' + salesTotal + '</p>');
+            $('#salonTotal').append('<p>Total six month sales: $' + salesTotal.toFixed(2) + '</p>');
         }
 
-        function calculateMarkerPolygonMappings(markers, polygons) {
-            var mappings = {};
+        function calculateMarkerPolygonMappings(markers, polygon) {
+            containedMarkers = [];
 
-            for (polygon in polygons) {
-                polygon = polygons[polygon];
-                var containedMarkers = [];
-                for (marker in markers) {
-                    marker = markers[marker];
-                    if (google.maps.geometry.poly.containsLocation(marker.getPosition(), polygon)) {
-                        containedMarkers.push(marker);
-                    }
+            for (marker in markers) {
+                marker = markers[marker];
+                if (google.maps.geometry.poly.containsLocation(marker.getPosition(), polygon)) {
+                    containedMarkers.push(marker);
                 }
-                mappings[polygon] = containedMarkers;
             }
 
-            return mappings;
+            return containedMarkers;
         }
 
         function filterItem(items, itemToRemove) {
