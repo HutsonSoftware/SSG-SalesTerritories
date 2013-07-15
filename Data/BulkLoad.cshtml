@@ -1,0 +1,50 @@
+﻿@{ 
+    var db = Database.Open("SSG-SalesTerritories");
+    var fileName = Request["fileName"];
+    var dataFile = Server.MapPath(string.Format("~/App_Data/{0}",fileName));
+    string[] allLines = File.ReadAllLines(dataFile);
+    for(int i=0; i<allLines.Count; i++)
+    {
+        if (i > 0)
+        {
+            string line = allLines[i];
+            string[] parts = line.Split(",");
+            string name = parts[0];
+            string address = parts[1];
+            string city = parts[2];
+            string state = parts[3];
+            string zip = parts[4];
+            string salesRep = parts[5];
+            string sixMoSale = parts[6];
+
+            string serviceUrl = 
+                string.Format(
+                    "http://maps.googleapis.com/maps/api/geocode/json?address={0},+{1},+{2}&sensor=false",
+                    address.Replace(" ","+"),
+                    city.Replace(" ","+"),
+                    state.Replace(" ","+"));
+            string dwml = string.Empty;
+            System.Net.WebClient webCient = new System.Net.WebClient(serviceUrl);
+            dwml = webCient.DownloadData();
+
+        }
+    }
+
+
+    var latitude = Request["Latitude"];
+    var longitude = Request["Longitude"];
+    var city = Request["City"];
+    var state = Request["State"];
+    var zip = Request["Zip"];
+    var address = Request["Address"];
+
+    if (IsPost) 
+    { 
+        var insertQuery = "INSERT INTO Salon (Latitude, Longitude, City, State, Zip, Address) VALUES (@0, @1, @2, @3, @4, @5)";
+        db.Execute(insertQuery, latitude, longitude, city, state, zip, address);
+
+        var identityQuery = @"SELECT @@IDENTITY;";
+        var data = db.Query(identityQuery);
+        Json.Write(data, Response.Output);
+     }
+}
