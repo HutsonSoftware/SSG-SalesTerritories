@@ -24,7 +24,7 @@
                  "<tr><td>State:</td> <td><input type='text' id='state'/> </td> </tr>" +
                  "<tr><td>Zip:</td> <td><input type='text' id='zip'/> </td> </tr>" +
                  "<tr><td>Six Month Sales:</td> <td><input type='text' id='sixMonthSales'/> </td> </tr>" +
-                 "<tr><td></td><td><input type='button' value='Save & Close' onclick='saveSalonDataFromForm()'/></td></tr></table>";
+                 "<tr><td></td><td><input type='button' value='Save & Close' onclick='saveSalonDataFromForm(event)'/></td></tr></table>";
 
         var geocoder = new google.maps.Geocoder();
 
@@ -358,7 +358,7 @@
             return undefined;
         }
 
-        function saveSalonDataFromForm() {
+        function saveSalonDataFromForm(event) {
             event.stopPropagation();
 
             var salonName = escape(document.getElementById('name').value);
