@@ -4,16 +4,16 @@
     Page.Subheader = "Sales by Address";
 
     var db = Database.Open("SSG-SalesTerritories");
-    var salons = db.Query("SELECT t.Name as TerritoryName, x.Address, x.SalesAmtSum, x.City, x.State, x.Zip "
+    var salons = db.Query("SELECT t.Name as TerritoryName, x.Address, x.SalesAmtSum, x.City, x.State, x.Zip, x.Name "
         + "FROM ("
-        + "SELECT t.TerritoryID, s.Address, SUM(s.SixMonthSales) as SalesAmtSum, s.City, s.State, s.Zip "
+        + "SELECT t.TerritoryID, s.Address, SUM(s.SixMonthSales) as SalesAmtSum, s.City, s.State, s.Zip, s.Name "
         + "FROM Salon s "
         + "INNER JOIN Mapping m on s.SalonID=m.SalonID "
         + "INNER JOIN Territory t on m.TerritoryID=t.TerritoryID "
-        + "GROUP BY t.TerritoryID, s.City, s.State, s.Zip, s.Address"
+        + "GROUP BY t.TerritoryID, s.City, s.State, s.Zip, s.Address, s.Name"
         + ") x "
         + "INNER JOIN Territory t on x.TerritoryID=t.TerritoryID");
-    var grid = new WebGrid(salons, ajaxUpdateContainerId: "grid");                    
+    var grid = new WebGrid(salons, ajaxUpdateContainerId: "grid", rowsPerPage: 25);                    
 }
 
 <hgroup class="title">
@@ -22,7 +22,7 @@
 </hgroup>
 <article>
      <style type="text/css"> 
-            .grid { margin: 4px; border-collapse: collapse; width: 600px; } 
+            .grid { margin: 4px; border-collapse: collapse; width: 950px; height: auto; line-height: normal; } 
             .head { background-color: #E8E8E8; font-weight: bold; color: #FFF; } 
             .grid th, .grid td { border: 1px solid #C0C0C0; padding: 5px; } 
             .alt { background-color: #E8E8E8; color: #000; }
@@ -32,6 +32,7 @@
                     alternatingRowStyle: "alt",
                     columns: grid.Columns(
                     grid.Column("TerritoryName", "Territory Name"),
+                    grid.Column("Name", "Salon"),
                     grid.Column("Address"),
                     grid.Column("City"),
                     grid.Column("State"),

@@ -1,0 +1,40 @@
+﻿@{
+    var territoryName = Request["name"];    
+
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Sales Report";
+    Page.Subheader = territoryName;
+
+    var db = Database.Open("SSG-SalesTerritories");
+
+    var salons = db.Query("SELECT s.Name, s.Address, s.City, s.State, s.Zip, s.SixMonthSales "
+        + "FROM Salon s INNER JOIN Mapping m on s.SalonID=m.SalonID "
+        + "INNER JOIN Territory t ON m.TerritoryID = t.TerritoryID "
+        + "WHERE t.Name=@0", territoryName);
+    var grid = new WebGrid(salons, ajaxUpdateContainerId: "grid", rowsPerPage: 25);                    
+}
+
+<hgroup class="title">
+    <h1>@Page.Title</h1>
+    <h2>@Page.Subheader</h2>
+</hgroup>
+<article>
+     <style type="text/css"> 
+            .grid { margin: 4px; border-collapse: collapse; width: 950px; height: auto; line-height: normal; } 
+            .head { background-color: #E8E8E8; font-weight: bold; color: #FFF; } 
+            .grid th, .grid td { border: 1px solid #C0C0C0; padding: 5px; } 
+            .alt { background-color: #E8E8E8; color: #000; }
+     </style> 
+    @grid.GetHtml(tableStyle: "grid",
+                    headerStyle: "head",
+                    alternatingRowStyle: "alt",
+                    columns: grid.Columns(
+                    grid.Column("Name", "Salon"),
+                    grid.Column("Address"),
+                    grid.Column("City"),
+                    grid.Column("State"),
+                    grid.Column("Zip"),
+                    grid.Column("SixMonthSales", "Sales", format:@<text>$@String.Format("{0:0.00}", item.SixMonthSales)</text>)
+                )
+    )
+</article>

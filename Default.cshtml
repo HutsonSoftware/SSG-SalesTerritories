@@ -191,6 +191,7 @@
         function polygonMouseOver() {
             $('#territoryInfo').empty();
             $('#salonTotal').empty();
+            $('#territoryNameHeader').empty();
 
             populateTerritoryInfoDiv(this);
         }
@@ -198,6 +199,7 @@
         function polygonMouseMove() {
             if (!$('#territoryInfo').html().length) {
                 $('#salonTotal').empty();
+                $('#territoryNameHeader').empty();
                 populateTerritoryInfoDiv(this);
             }
         }
@@ -205,6 +207,7 @@
         function polygonMouseOut() {
             $('#territoryInfo').empty();
             $('#salonTotal').empty();
+            $('#territoryNameHeader').empty();
 
             $('#territoryInfo').css('border-bottom-style', 'none');
         }
@@ -224,9 +227,10 @@
 
             $.getJSON("./Data/InsertTerritory.cshtml?EncodedPath=" + encodedPath, function (data) {
                 polygonList.push(polygon);
+                var territoryId = data[0]['Column1'];
                 polygon.setOptions({
-                    id: data[0]['Column1'],
-                    name: 'My New Territory',
+                    id: territoryId,
+                    name: 'Territory' + territoryId,
                     encodedPath: encodedPath,
                     markers: calculateMarkerPolygonMappings(markerList, polygon)
                 })
@@ -279,7 +283,7 @@
         }
 
         function addSalonToDatabase(marker) {
-            //we attempt here to fill in some of the geographical information for the user using google's geocoder API
+            //attempt to fill in some of the geographical information for the user using google's geocoder API
             geocoder.geocode({ location: marker.getPosition() }, function (geocoderResult) {
                 var queryString = createSalonQueryString(marker, geocoderResult);
 
@@ -394,18 +398,25 @@
         }
 
         function populateTerritoryInfoDiv(polygon) {
+            var territoryNameHeader = $('#territoryNameHeader');
             var territoryInfoDiv = $('#territoryInfo');
+            var totalSalons = 0;
             var salesTotal = 0.0;
 
-            polygon.markers = calculateMarkerPolygonMappings(markerList, polygon)
+            territoryNameHeader.text(polygon.name);
+
+            polygon.markers = calculateMarkerPolygonMappings(markerList, polygon);
+
+            totalSalons = polygon.markers.length;
 
             $.each(polygon.markers, function (i, salon) {
-                territoryInfoDiv.append('<p>' + salon.name + '</p>');
-                territoryInfoDiv.css('border-bottom-style', 'solid');
+                //territoryInfoDiv.append('<p style="font-size: 10px">' + salon.name + ' ($' + salon.sixMonthSales.toFixed(2) + ')' + '</p>');
+                //territoryInfoDiv.css('border-bottom-style', 'solid');
                 salesTotal += parseFloat(salon.sixMonthSales);
             });
 
-            $('#salonTotal').append('<p>Total six month sales: $' + salesTotal.toFixed(2) + '</p>');
+            $('#territoryInfo').append('<p>Total salons in territory: ' + totalSalons + '</p>');
+            $('#territoryInfo').append('<p>Total six month sales: $' + salesTotal.toFixed(2) + '</p>');
         }
 
         function calculateMarkerPolygonMappings(markers, polygon) {
@@ -450,11 +461,14 @@
 
 <article>
     <div id="googleMap" style="height: 800px;"></div>
+    <p style="font-size: 10px">Click map to add salon markers.
+        Click markers to change data.
+        Use toolbar at top of map to draw territories.
+        Shift+click territories to rename.</p>
+    <p style="font-size: 10px"></p>
 </article>
 
 <div id="territoryInfoContainer" style="height: 800px; float: left; width: 25%; padding-left: 5%">
-    <h4>Selected Sales Territory:</h4>
-    <div id="territoryInfo">
-    </div>
-    <div id="salonTotal"></div>
+    <h3 id="territoryNameHeader"></h3>
+    <div id="territoryInfo"></div>
 </div>

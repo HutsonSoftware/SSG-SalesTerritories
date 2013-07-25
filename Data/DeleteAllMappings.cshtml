@@ -1,0 +1,6 @@
+﻿@{
+    var db = Database.Open("SSG-SalesTerritories");
+
+    var command = "DELETE FROM Mapping;";
+    db.Execute(command);
+}

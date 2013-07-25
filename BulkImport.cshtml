@@ -1,0 +1,215 @@
+﻿@using Microsoft.Web.Helpers;
+@using System.Text.RegularExpressions
+
+@section Scripts {
+    <script type="text/javascript" src="http://maps.googleapis.com/maps/api/js?libraries=drawing,geometry&key=AIzaSyDY0kkJiTPVd2U7aTOAwhc9ySH6oHxOIYM&sensor=false"></script>
+    <script type="text/javascript">
+        
+        var markerFile = './Data/SalonList.cshtml';
+        var polygonFile = './Data/TerritoryList.cshtml';
+
+        var polygonList = [];
+        var markerList = [];
+        var map;
+
+        function windowLoaded() {
+            deleteMappings();
+            loadMap();
+        }
+
+        function loadMap() {
+            map = new google.maps.Map(document.getElementById("googleMap"));
+
+            loadMarkers();
+            loadPolygons();
+        }
+
+        function loadMarkers() {
+            $.getJSON(markerFile, function (data) {
+                $.each(data, function (i, field) {
+                    loadMarker(field);
+                });
+            });
+        }
+
+        function loadMarker(markerData) {
+            var myLatlng = new google.maps.LatLng(markerData['Latitude'], markerData['Longitude']);
+            var marker = new google.maps.Marker({
+                id: markerData['SalonID'],
+                map: map,
+                position: myLatlng
+            });
+
+            markerList.push(marker);
+        }
+
+        function loadPolygons() {
+            $.getJSON(polygonFile, function (data) {
+                $.each(data, function (i, field) {
+                    loadPolygon(field);
+                });
+            });
+        }
+
+        function loadPolygon(polygonData) {
+            var polygon = new google.maps.Polygon({
+                paths: google.maps.geometry.encoding.decodePath(polygonData['EncodedPath']),
+                id: polygonData['TerritoryID']
+            });
+
+            polygon.setMap(map);
+
+            polygonList.push(polygon);
+        }
+
+        function calculateMappings() {
+            for (polygon in polygonList) {
+                polygon = polygonList[polygon];
+                for (marker in markerList) {
+                    marker = markerList[marker];
+                    if (google.maps.geometry.poly.containsLocation(marker.getPosition(), polygon)) {
+                        insertMapping(polygon.id, marker.id);
+                    }
+                }
+            }
+        }
+
+        function insertMapping(polygonID, salonID) {
+            $.get("./Data/InsertMapping.cshtml?TerritoryID=" + polygonID + "&SalonID=" + salonID);
+        }
+
+        function deleteMappings() {
+            $.get("./Data/DeleteAllMappings.cshtml");
+        }
+
+        google.maps.event.addDomListener(window, 'load', windowLoaded);
+
+    </script>
+}
+
+@{
+    Layout = "~/_SiteLayout.cshtml";
+    Page.Title = "Bulk Import Tool";   
+
+    List<String> failedLines = new List<String>();
+    var failureMessage = "";
+
+    var MAX_QUERY_RETRIES = 15;
+    
+    var db = Database.Open("SSG-SalesTerritories"); 
+
+    var fileName = "";
+    if (IsPost) {
+        var fileSavePath = "";
+        var uploadedFile = Request.Files[0];
+        var streamReader = new StreamReader(uploadedFile.InputStream);
+        List<String> allLines = new List<String>();
+
+        while (streamReader.Peek() != -1) {
+            allLines.Add(streamReader.ReadLine());
+        }
+
+        string latPattern = "\"lat\" : (-?[0-9]*\\.[0-9]*),?";
+        string lngPattern = "\"lng\" : (-?[0-9]*\\.[0-9]*),?";
+        for(int i=1; i<allLines.Count(); i++)
+        {
+                string line = allLines[i];
+                string[] parts = line.Split(new char[] {','});
+                string name = parts[0];
+                string address = parts[1];
+                string city = parts[2];
+                string state = parts[3];
+                string zip = parts[4];
+                string salesRep = parts[5];
+                string sixMoSale = parts[6];
+
+                System.Threading.Thread.Sleep(200);
+
+                string serviceUrl = 
+                    string.Format(
+                        "http://maps.googleapis.com/maps/api/geocode/json?address={0},+{1},+{2}&sensor=false",
+                        address.Replace(" ","+"),
+                        city.Replace(" ","+"),
+                        state.Replace(" ","+"));
+                string dwml = string.Empty;
+                System.Net.WebClient webCient = new System.Net.WebClient();
+                dwml = System.Text.ASCIIEncoding.ASCII.GetString(webCient.DownloadData(serviceUrl));
+
+                int queries = 0;
+
+                while (dwml.Contains("OVER_QUERY_LIMIT")) {
+                    if (queries == MAX_QUERY_RETRIES) {
+                        throw new Exception("It appears as though the daily Google Maps API query limit was reached.");
+                    }
+
+                    queries++;
+                    System.Threading.Thread.Sleep(1000);
+                    dwml = System.Text.ASCIIEncoding.ASCII.GetString(webCient.DownloadData(serviceUrl));
+                }
+
+                string lat = String.Empty;
+                string lng = String.Empty;
+
+                if (!dwml.Contains("ZERO RESULTS")) {
+                    Regex latrgx = new Regex(latPattern, RegexOptions.IgnoreCase);
+                    MatchCollection latmatches = latrgx.Matches(dwml);
+
+                    Regex lngrgx = new Regex(lngPattern, RegexOptions.IgnoreCase);
+                    MatchCollection lngmatches = lngrgx.Matches(dwml);
+
+                    foreach (Match latmatch in latmatches) {
+                        lat = latmatch.Groups[1].Value;
+                        break;
+                    }
+
+                    foreach (Match lngmatch in lngmatches) {
+                        lng = lngmatch.Groups[1].Value;
+                        break;
+                    }
+                }
+
+                if (lat.Equals(String.Empty) || lng.Equals(String.Empty)) {
+                    failedLines.Add(line);
+                    continue;
+                }
+
+                var insertQuery = "INSERT INTO Salon (Name, City, State, Zip, Address, Latitude, Longitude, SixMonthSales, SalesRepID) VALUES (@0, @1, @2, @3, @4, @5, @6, @7, @8)";
+                db.Execute(insertQuery, name, city, state, zip, address, lat, lng, sixMoSale, salesRep);
+
+        }
+
+        if (failedLines.Count > 0) {
+            failureMessage = "The following lines failed to load into the database: \n";
+            foreach (String failedLine in failedLines) {
+                failureMessage += failedLine + "\n";
+            }
+        }
+
+        <script>calculateMappings()</script>
+    }
+}
+
+
+<hgroup class="title">
+    <h1>@Page.Title</h1>
+</hgroup>
+
+<article>
+    @FileUpload.GetHtml(
+        initialNumberOfFiles:1,
+        allowMoreFilesToBeAdded:false,
+        includeFormTag:true,
+        uploadText:"Upload")
+    @if (IsPost) {
+        <span>File loaded!</span><br/>
+    }
+
+    <button onclick="calculateMappings()">Synchronize Mappings</button>
+
+    <p>@failureMessage</p>
+
+</article>
+
+<article hidden="hidden">
+    <div id="googleMap" style="height: 800px;"></div>
+</article>
